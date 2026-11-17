@@ -27,6 +27,6 @@ workflows:
           mkdir -p output/Payload
           cp -R build/Build/Products/Release-iphoneos/OpenMausBot.app output/Payload/
           cd output
-          zip -r ../../OpenMausBot-unsigned.ipa Payload
+          zip -r ../../../OpenMausBot-unsigned.ipa Payload
     artifacts:
       - OpenMausBot-unsigned.ipa
