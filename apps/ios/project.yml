@@ -1,0 +1,19 @@
+name: OpenMausBot
+options:
+  bundleIdPrefix: com.openmausbot
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  OpenMausBot:
+    type: application
+    platform: iOS
+    sources:
+      - path: OpenMausBot
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.openmausbot.ios
+        INFOPLIST_FILE: OpenMausBot/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
