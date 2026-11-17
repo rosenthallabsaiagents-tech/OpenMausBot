@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { codeUntil, lastSeen } from "../lib/pairing-time";
-import { canPairDevices, pairingBlockedReason, ServerPairingCard, shownDevices } from "./ServerPairingCard";
+import { canPairDevices, pairingBlockedReason, pairingScopes, ServerPairingCard, shownDevices } from "./ServerPairingCard";
 
 describe("pairing devices from a hosted server's settings", () => {
   it("is offered to the owner on the box and to admin sessions, never to chat-only sessions", () => {
@@ -21,6 +21,17 @@ describe("pairing devices from a hosted server's settings", () => {
     expect(lastSeen(0, 3 * 60_000)).toBe("3 min ago");
     expect(lastSeen(0, 5 * 3_600_000)).toBe("5 h ago");
     expect(lastSeen(0, 3 * 86_400_000)).toBe("3 d ago");
+  });
+
+  it("pairs a phone with telephony access but without admin, and keeps personal Clouds admin-only", () => {
+    expect(pairingScopes("phone")).toEqual(["client", "phone"]);
+    expect(pairingScopes("client")).toEqual(["client"]);
+    expect(pairingScopes("admin")).toEqual(["admin", "client"]);
+    expect(pairingScopes("phone", true)).toEqual(["admin", "client"]);
+    const phone = { kind: "session" as const, id: "s", label: "Phone", scopes: ["client", "phone"], expiresAt: 1 };
+    expect(canPairDevices(phone)).toBe(false);
+    expect(pairingBlockedReason(phone)).toBeNull();
+    expect(renderToStaticMarkup(createElement(ServerPairingCard, { initialSession: phone }))).toBe("");
   });
 
   it("renders nothing until it knows who is asking", () => {

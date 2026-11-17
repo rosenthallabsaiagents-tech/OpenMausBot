@@ -73,7 +73,7 @@ export function formatSessions(sessions: Array<{ id: string; label: string; scop
     const m = Math.max(0, Math.floor((now - ms) / 60_000));
     return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
   };
-  const rows = sessions.map((s) => [s.id, `${s.label || "(unnamed)"}${s.token ? " (token)" : ""}`, s.scopes.includes("admin") ? "admin" : "client", age(s.lastSeenAt), new Date(s.expiresAt).toISOString().slice(0, 10)]);
+  const rows = sessions.map((s) => [s.id, `${s.label || "(unnamed)"}${s.token ? " (token)" : ""}`, s.scopes.includes("admin") ? "admin" : s.scopes.includes("phone") ? "phone assistant" : "client", age(s.lastSeenAt), new Date(s.expiresAt).toISOString().slice(0, 10)]);
   const head = ["id", "device", "scope", "last seen", "expires"];
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
   const line = (r: string[]) => r.map((c, i) => c.padEnd(widths[i])).join("  ");

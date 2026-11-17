@@ -16,7 +16,7 @@ import {
 } from "../shared/pairing-code.ts";
 import { userError, type UserError } from "./user-errors.ts";
 
-export type Scope = "admin" | "client";
+export type Scope = "admin" | "client" | "phone";
 export const SCOPES: readonly Scope[] = ["admin", "client"];
 
 export { formatPairingCode, normalizePairingCode, PAIRING_CODE_ALPHABET, PAIRING_CODE_LENGTH, PAIRING_CREDENTIAL_PREFIX };
@@ -57,7 +57,7 @@ export const EXCHANGE_REPLAY_MS = 60_000;
 export const MAX_STREAM_TICKETS_PER_SESSION = 5;
 const LAST_SEEN_WRITE_INTERVAL_MS = 60_000;
 
-const scopeSchema = z.enum(["admin", "client"]);
+const scopeSchema = z.enum(["admin", "client", "phone"]);
 
 const sessionSchema = z.object({
   id: z.string().min(1),
@@ -210,7 +210,8 @@ export function pairingRequest(body: unknown): PairingRequest | { error: string 
   if (ttlMs === null) return { error: "ttlMs must be a whole number of milliseconds, from one minute to 24 hours" };
   const tokenTtlMs = within(record.tokenTtlMs, 60_000, SESSION_MAX_AGE_MS);
   if (tokenTtlMs === null) return { error: `a token lasts from one minute to ${Math.floor(SESSION_MAX_AGE_MS / DAY_MS)} days on this server (OMB_SESSION_MAX_DAYS)` };
-  const scopes = Array.isArray(record.scopes) ? record.scopes.filter((v): v is Scope => v === "admin" || v === "client") : undefined;
+  const scopes = Array.isArray(record.scopes) ? record.scopes.filter((v): v is Scope => v === "admin" || v === "client" || v === "phone") : undefined;
+  if (scopes?.includes("phone") && !scopes.includes("admin") && !scopes.includes("client")) scopes.push("client");
   return {
     ...(typeof record.label === "string" ? { label: record.label } : {}), ...(scopes ? { scopes } : {}),
     ...(ttlMs !== undefined ? { ttlMs } : {}), ...(tokenTtlMs !== undefined ? { tokenTtlMs } : {}),

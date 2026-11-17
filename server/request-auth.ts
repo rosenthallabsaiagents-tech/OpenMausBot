@@ -470,6 +470,7 @@ export const CLIENT_ALLOW: ReadonlyArray<{ methods: readonly string[]; path: Reg
 
 export function requiredScope(method: string, path: string, features: { sharedComputers?: boolean } = {}): Scope {
   const upper = method.toUpperCase();
+  if (path.startsWith("/api/telephony/")) return "phone";
   for (const rule of CLIENT_ALLOW) {
     if (rule.feature && features[rule.feature] !== true) continue;
     if (rule.path.test(path) && rule.methods.includes(upper)) return "client";
@@ -628,7 +629,10 @@ export function resolveRequestAuth(req: IncomingMessage, options: ResolveOptions
     const narrowed = options.restricted?.(session, method, path, options.url) ?? null;
     if (narrowed) return deny(403, narrowed);
     const needed = requiredScope(method, path, options.features ?? {});
-    if (!session.scopes.includes(needed)) {
+    const permitted = needed === "phone"
+      ? session.scopes.includes("admin") || session.scopes.includes("phone")
+      : session.scopes.includes(needed);
+    if (!permitted) {
       return deny(403, options.scopeRefusal?.(method, path) ?? `forbidden: this session lacks the ${needed} scope`);
     }
     // Redeeming a stream ticket does not renew: an unattended open stream must not keep a session alive.

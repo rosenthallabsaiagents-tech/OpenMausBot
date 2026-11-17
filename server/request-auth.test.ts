@@ -234,6 +234,12 @@ describe("scopes", () => {
     for (const method of ["POST", "PUT"]) expect(requiredScope(method, "/api/sidebar-sections"), method).toBe("admin");
   });
 
+  it("uses a separate phone capability for telephony while leaving other admin routes protected", () => {
+    expect(requiredScope("GET", "/api/telephony/status")).toBe("phone");
+    expect(requiredScope("POST", "/api/telephony/calls/outbound")).toBe("phone");
+    expect(requiredScope("GET", "/api/auth/sessions")).toBe("admin");
+  });
+
   it("lets a bot's maker without the admin scope say who it is and how it looks, never what it may do or whom it directs", () => {
     const profile = { name: "Scout", title: "Trips", soul: "Plans trips.", color: "teal", avatarCrop: "square", voice: "alloy", modelSelection: { instanceId: "claude", model: "m" } };
     expect(adminOnlyBotSetting(profile)).toBeNull();
@@ -306,6 +312,25 @@ describe("resolveRequestAuth", () => {
     expect(check("POST", "/api/live/device-revoked").auth?.kind).toBe("loopback");
     for (const overrides of forged) expect(check("POST", "/api/live/device-revoked", overrides).auth).toBeNull();
     expect(check("GET", "/api/live/device-revoked").auth).toBeNull();
+  });
+
+  it("lets a client-plus-phone session reach telephony but not general admin APIs", () => {
+    const phonePairing = sessions.openPairing({ scopes: ["client", "phone"] });
+    const phone = sessions.exchange({ code: phonePairing.code, label: "Phone", source: "fixture" });
+    if (!phone.ok) throw new Error(phone.error);
+    const headers = { authorization: `Bearer ${phone.token}` };
+    expect(resolve(headers, "/api/telephony/status").auth?.scopes).toEqual(["client", "phone"]);
+    expect(resolve(headers, "/api/auth/sessions").status).toBe(403);
+
+    const clientPairing = sessions.openPairing({ scopes: ["client"] });
+    const client = sessions.exchange({ code: clientPairing.code, label: "Client", source: "fixture" });
+    if (!client.ok) throw new Error(client.error);
+    expect(resolve({ authorization: `Bearer ${client.token}` }, "/api/telephony/status").status).toBe(403);
+
+    const adminPairing = sessions.openPairing({ scopes: ["admin"] });
+    const admin = sessions.exchange({ code: adminPairing.code, label: "Admin", source: "fixture" });
+    if (!admin.ok) throw new Error(admin.error);
+    expect(resolve({ authorization: `Bearer ${admin.token}` }, "/api/telephony/status").auth?.scopes).toEqual(["admin"]);
   });
 
   function pairedToken(scopes: Array<"admin" | "client"> = ["admin", "client"]): string {

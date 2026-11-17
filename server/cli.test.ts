@@ -152,6 +152,7 @@ describe("openmausbot command line", () => {
     expect(table).toContain("(unnamed)");
     expect(table).toMatch(/a1\s+My MacBook\s+admin\s+just now/);
     expect(table).toMatch(/b2\s+\(unnamed\)\s+client\s+3 h ago/);
+    expect(formatSessions([{ id: "p4", label: "Phone browser", scopes: ["client", "phone"], lastSeenAt: now, expiresAt: now + 1 }], now)).toMatch(/p4\s+Phone browser\s+phone assistant\s+just now/);
     expect(table).toContain("devices revoke <id>");
     expect(formatSessions([{ id: "c3", label: "Nightly CI", scopes: ["client"], lastSeenAt: now, expiresAt: now, token: true }], now)).toContain("Nightly CI (token)");
   });

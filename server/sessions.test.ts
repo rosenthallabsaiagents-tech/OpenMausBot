@@ -196,6 +196,13 @@ describe("pairing codes", () => {
 
   it("takes a code's term and a token's from the request, and refuses either out of bounds", () => {
     expect(pairingRequest({ label: "CI", scopes: ["client", "root"], ttlMs: 86_400_000 })).toEqual({ label: "CI", scopes: ["client"], ttlMs: 86_400_000 });
+    expect(pairingRequest({ scopes: ["client", "phone"] })).toEqual({ scopes: ["client", "phone"] });
+    expect(pairingRequest({ scopes: ["phone"] })).toEqual({ scopes: ["phone", "client"] });
+    const phonePairing = pairingRequest({ scopes: ["client", "phone"] });
+    if ("error" in phonePairing) throw new Error(phonePairing.error);
+    const phoneCode = registry.openPairing(phonePairing);
+    const phoneSession = registry.exchange({ code: phoneCode.code, label: "Paired phone", source: "fixture" });
+    expect(phoneSession.ok && phoneSession.session.scopes).toEqual(["client", "phone"]);
     expect(pairingRequest({ tokenTtlMs: SESSION_MAX_AGE_MS })).toEqual({ tokenTtlMs: SESSION_MAX_AGE_MS });
     expect(pairingRequest(null)).toEqual({});
     for (const ttlMs of [86_400_001, 59_999, 1.5e6 + 0.5, "24h"]) expect(pairingRequest({ ttlMs }), String(ttlMs)).toMatchObject({ error: expect.stringContaining("24 hours") });

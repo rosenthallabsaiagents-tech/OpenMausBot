@@ -625,6 +625,10 @@ import { createComputerRoutes } from "./routes/computers.ts";
 import { createStatusRoutes } from "./routes/status.ts";
 import { findAntigravityLeftovers, removeAntigravityLeftovers } from "./drivers/antigravity-temp.ts";
 import { createLiveRoutes } from "./routes/live.ts";
+import { createTelephonyRoutes } from "./routes/telephony.ts";
+import { createTelephonyAgent } from "./telephony/agent.ts";
+import { loadTelephonyConfig } from "./telephony/service.ts";
+import { PhoneStore } from "./telephony/store.ts";
 import { createNotificationRoutes, notificationListedFor } from "./routes/notifications.ts";
 import { createTodayRoutes } from "./routes/today.ts"; import { createInboxRoutes } from "./routes/inbox.ts"; import { createSidebarSectionRoutes } from "./routes/sidebar-sections.ts";
 import { createToolTimingRoute, createUsageRoutes } from "./routes/usage.ts"; import { createPrivateRecords } from "./host/private-records.ts";
@@ -800,6 +804,10 @@ function savedCustomDomain(): string | null {
   catch { return null; }
 }
 function publicUrl(): string | null { return savedCustomDomain() ?? FALLBACK_PUBLIC_URL ?? tailnetShare.origin() ?? lanUrl(PORT); }
+function telephonyConfig() {
+  const settings = loadTelephonyConfig();
+  return { ...settings, publicUrl: settings.publicUrl || savedCustomDomain() || FALLBACK_PUBLIC_URL || "" };
+}
 function customDomainStatus() {
   return {
     customDomain: savedCustomDomain(), publicUrl: publicUrl(), fallbackUrl: FALLBACK_PUBLIC_URL,
@@ -4642,6 +4650,8 @@ function audienceChanged(): void {
 }
 // Before any revocation callback: Cloud boot can revoke sessions before routes are registered.
 const upgrades = createUpgrades();
+const telephonyStore = new PhoneStore(DATA_DIR);
+const telephonyAgent = createTelephonyAgent({ store: telephonyStore, upgrades, config: telephonyConfig });
 const desktopViewer = createDesktopViewer({
   upgrades,
   target: (id) => {
@@ -12547,6 +12557,7 @@ ROUTES.push(createLiveRoutes({
     return liveSettingsFor(cfg);
   },
 }));
+ROUTES.push(createTelephonyRoutes({ store: telephonyStore, config: telephonyConfig }));
 
 const toolResults = new ToolResults();
 const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
@@ -12562,6 +12573,8 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
   let m: RegExpMatchArray | null = null;
   let releaseWorkspaceRequest: (() => void) | undefined;
   try {
+    // Only Twilio requests with a valid signature are admitted before the app authentication gate.
+    if (await telephonyAgent.handle(req, res, path, method)) return;
     if (method === "GET" && path === "/api/health/hosted") {
       res.setHeader("cache-control", "no-store");
       const hosted = hostedWorkspaceConfiguration();
@@ -15458,6 +15471,7 @@ const gracefulShutdown = createGracefulShutdown({
       sharedComputerControl.close();
       browserLive.closeAll();
       desktopViewer.closeAll();
+      telephonyAgent.close();
       upgrades.close();
       for (const idle of localVmIdles.values()) idle.cancel();
       cloudComputerPower.close();

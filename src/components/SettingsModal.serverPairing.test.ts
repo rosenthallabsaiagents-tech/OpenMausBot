@@ -38,11 +38,13 @@ describe("Settings → Remote access: server pairing card visibility", () => {
   it("is offered on a hosted server reached from a browser (no window.ogb)", () => {
     vi.stubGlobal("window", {});
     expect(render()).toContain("SERVER_PAIRING_CARD_MARKER");
+    expect(render()).toContain("Phone assistant");
   });
 
   it("is offered inside the desktop app when it owns the server being paired against", () => {
     vi.stubGlobal("window", { ogb: {} });
     expect(render()).toContain("SERVER_PAIRING_CARD_MARKER");
+    expect(render()).toContain("Phone assistant");
   });
 
   it("is offered when this desktop is a remote client of a hosted workspace, whose phones pair only here", () => {

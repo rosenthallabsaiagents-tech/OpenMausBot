@@ -13,6 +13,7 @@ import { Select } from "./Select";
 import { cn } from "@/lib/cn";
 import { TeamPhoneCard } from "./TeamPhoneCard";
 import { ComputerNameRow } from "./ComputerNameRow";
+import { t as translate } from "@/lib/i18n";
 
 export interface PairingOffer {
   id: string;
@@ -31,6 +32,10 @@ export interface PairedDevice {
   email?: string;
 }
 
+export function pairingScopes(scope: "admin" | "client" | "phone", cloudHome = false): string[] {
+  return scope === "admin" || cloudHome ? ["admin", "client"] : scope === "phone" ? ["client", "phone"] : ["client"];
+}
+
 /**
  * Security: only the owner on its own machine or an admin session may pair; a chat-only session must not even see the
  * offer.
@@ -40,6 +45,7 @@ export function canPairDevices(state: SessionState | null): boolean {
 }
 
 export function pairingBlockedReason(state: SessionState | null): "chat-only" | null {
+  if (state?.kind === "session" && state.scopes.includes("phone")) return null;
   return state?.kind === "session" && !state.scopes.includes("admin") ? "chat-only" : null;
 }
 
@@ -50,11 +56,11 @@ export function shownDevices(devices: PairedDevice[], cloudHome: boolean): Paire
 const button = "ui-button ui-button-primary";
 const quiet = "ui-button";
 
-export function ServerPairingCard({ initialSession = null, initialPairingCodes = true, cloudHome = false, focusRequest = 0, team, teamPhoneBlocked = null, simple = false, reveal = true }: { initialSession?: SessionState | null; initialPairingCodes?: boolean; cloudHome?: boolean; focusRequest?: number; team?: string; teamPhoneBlocked?: string | null; simple?: boolean; /** False where another pairing flow owns the page's focus. */ reveal?: boolean }) {
+export function ServerPairingCard({ initialSession = null, initialPairingCodes = true, cloudHome = false, focusRequest = 0, team, teamPhoneBlocked = null, simple = false, reveal = true, phoneAssistantOnly = false }: { initialSession?: SessionState | null; initialPairingCodes?: boolean; cloudHome?: boolean; focusRequest?: number; team?: string; teamPhoneBlocked?: string | null; simple?: boolean; /** False where another pairing flow owns the page's focus. */ reveal?: boolean; phoneAssistantOnly?: boolean }) {
   const [session, setSession] = useState<SessionState | null>(initialSession);
   const [pairingCodes, setPairingCodes] = useState(initialPairingCodes);
   const [computerName, setComputerName] = useState<string | null>(null);
-  const [scope, setScope] = useState<"admin" | "client">("admin");
+  const [scope, setScope] = useState<"admin" | "client" | "phone">("admin");
   const [offer, setOffer] = useState<PairingOffer | null>(null);
   const [devices, setDevices] = useState<PairedDevice[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
@@ -117,14 +123,14 @@ export function ServerPairingCard({ initialSession = null, initialPairingCodes =
     );
   }
   const expired = offer ? offer.expiresAt <= now : false;
-  const listed = shownDevices(devices, cloudHome);
+  const listed = shownDevices(devices, cloudHome).filter((device) => !phoneAssistantOnly || device.scopes.includes("phone"));
 
   async function create() {
     setBusy(true);
     setError(null);
     setCopied("idle");
     try {
-      const body: PairingOffer = await api("/api/auth/pairing", { method: "POST", body: JSON.stringify({ scopes: scope === "admin" || cloudHome ? ["admin", "client"] : ["client"] }) });
+      const body: PairingOffer = await api("/api/auth/pairing", { method: "POST", body: JSON.stringify({ scopes: pairingScopes(phoneAssistantOnly ? "phone" : scope, cloudHome) }) });
       setOffer(body);
       setNow(Date.now());
     } catch (e) {
@@ -183,20 +189,23 @@ export function ServerPairingCard({ initialSession = null, initialPairingCodes =
   // Loaded with the config; a personal cloud has no computer of its own to name.
   const nameRow = (className: string) => pairingCodes && !cloudHome && computerName !== null
     ? <ComputerNameRow saved={computerName} onSaved={setComputerName} className={className} /> : null;
-  const scopeName = (device: PairedDevice) => t(device.scopes.includes("admin") ? "remote.serverPairing.scope.admin" : "remote.serverPairing.scope.client");
+  const scopeName = (device: PairedDevice) => device.scopes.includes("phone")
+    ? translate("phone.pairing.scope")
+    : t(device.scopes.includes("admin") ? "remote.serverPairing.scope.admin" : "remote.serverPairing.scope.client");
 
   if (simple) {
     return (
       <div ref={root} tabIndex={-1} data-phone-pairing="server" className="flex scroll-mt-4 flex-col gap-1.5 focus:outline-none">
         <div data-settings-rows="" className={cn(SIMPLE_CARD, "flex flex-col")}>
           {nameRow("px-4 py-2.5")}
-          <SettingRow title={t("settings.simple.computer.pair")} subtitle={pairingCodes ? cloudHome ? t("remote.serverPairing.cloudPersonal") : undefined : t("remote.serverPairing.portal")}>
+          <SettingRow title={phoneAssistantOnly ? t("phone.assistant.pairingTitle") : t("settings.simple.computer.pair")} subtitle={pairingCodes ? cloudHome ? t("remote.serverPairing.cloudPersonal") : phoneAssistantOnly ? t("phone.assistant.pairingSubtitle") : undefined : t("remote.serverPairing.portal")}>
             {pairingCodes ? (
               <div className="flex items-center gap-2">
-                {cloudHome ? null : (
-                  <Select variant="ghost" value={scope} aria-label={t("remote.serverPairing.title")} onChange={(event) => setScope(event.target.value === "client" ? "client" : "admin")}>
+                {cloudHome || phoneAssistantOnly ? null : (
+                  <Select variant="ghost" value={scope} aria-label={t("remote.serverPairing.title")} onChange={(event) => setScope(event.target.value === "client" || event.target.value === "phone" ? event.target.value : "admin")}>
                     <option value="admin">{t("remote.serverPairing.scope.admin")}</option>
                     <option value="client">{t("remote.serverPairing.scope.client")}</option>
+                    <option value="phone">{translate("phone.pairing.scope")}</option>
                   </Select>
                 )}
                 <button type="button" data-phone-pairing-action={reveal ? "" : undefined} onClick={() => void create()} disabled={busy} className="ui-button">
@@ -230,11 +239,11 @@ export function ServerPairingCard({ initialSession = null, initialPairingCodes =
 
   return (
     <div ref={root} tabIndex={-1} data-phone-pairing="server" className="scroll-mt-4 rounded-xl focus:outline-none">
-    <Card title={t("remote.serverPairing.title")} subtitle={t(pairingCodes ? "remote.serverPairing.subtitle" : "remote.serverPairing.portalSubtitle")}>
+    <Card title={phoneAssistantOnly ? t("phone.assistant.pairingTitle") : t("remote.serverPairing.title")} subtitle={phoneAssistantOnly ? t("phone.assistant.pairingSubtitle") : t(pairingCodes ? "remote.serverPairing.subtitle" : "remote.serverPairing.portalSubtitle")}>
       {pairingCodes && cloudHome ? <p data-server-pairing-personal className="mt-3 text-[13px] text-ink-secondary">{t("remote.serverPairing.cloudPersonal")}</p> : null}
       {nameRow("mt-3")}
       {pairingCodes ? <div className="mt-3 flex flex-wrap items-center gap-3">
-        {cloudHome ? null : <>
+        {cloudHome || phoneAssistantOnly ? null : <>
           <label className="flex items-center gap-1.5 text-[13px] text-ink">
             <input type="radio" name="server-pairing-scope" checked={scope === "admin"} onChange={() => setScope("admin")} />
             {t("remote.serverPairing.scope.admin")}
@@ -242,6 +251,10 @@ export function ServerPairingCard({ initialSession = null, initialPairingCodes =
           <label className="flex items-center gap-1.5 text-[13px] text-ink">
             <input type="radio" name="server-pairing-scope" checked={scope === "client"} onChange={() => setScope("client")} />
             {t("remote.serverPairing.scope.client")}
+          </label>
+          <label className="flex items-center gap-1.5 text-[13px] text-ink">
+            <input type="radio" name="server-pairing-scope" checked={scope === "phone"} onChange={() => setScope("phone")} />
+            {translate("phone.pairing.scope")}
           </label>
         </>}
         <button type="button" data-phone-pairing-action={reveal ? "" : undefined} onClick={() => void create()} disabled={busy} className={button}>
@@ -261,7 +274,7 @@ export function ServerPairingCard({ initialSession = null, initialPairingCodes =
                 {device.email ? <span className="text-ink-secondary"> · {device.email}</span> : null}
                 <span className="text-ink-secondary">
                   {" · "}
-                  {device.scopes.includes("admin") ? t("remote.serverPairing.scope.admin") : t("remote.serverPairing.scope.client")}
+                  {scopeName(device)}
                   {" · "}
                   {t("remote.serverPairing.seen", { when: lastSeen(device.lastSeenAt, now) })}
                   {device.id === current ? ` · ${t("remote.serverPairing.thisBrowser")}` : ""}

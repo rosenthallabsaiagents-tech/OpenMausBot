@@ -4,6 +4,7 @@ import type { InstanceConfigMap } from "./contracts.ts";
 
 export const OPENAI_API_INSTANCE = "openai";
 export const OPENROUTER_API_INSTANCE = "openrouter";
+export const NVIDIA_API_INSTANCE = "nvidia";
 export const XAI_API_INSTANCE = "xaiApi";
 export const CLAUDE_API_INSTANCE = "claudeApi";
 export const API_KEY_FLEET: InstanceConfigMap = {
@@ -19,6 +20,10 @@ export const API_KEY_FLEET: InstanceConfigMap = {
   [OPENROUTER_API_INSTANCE]: {
     driver: "openai-compat", displayName: "OpenRouter", access: "api", icon: { kind: "preset", preset: "openrouter" },
     config: { url: "https://openrouter.ai/api/v1", apiKeyEnv: "OMB_OPENROUTER_API_KEY" },
+  },
+  [NVIDIA_API_INSTANCE]: {
+    driver: "openai-compat", displayName: "NVIDIA", access: "api",
+    config: { url: "https://integrate.api.nvidia.com/v1", apiKeyEnv: "OMB_NVIDIA_API_KEY" },
   },
 };
 

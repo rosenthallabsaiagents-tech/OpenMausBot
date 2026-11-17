@@ -8,6 +8,9 @@ window and uses the same workspace, conversations and pairing as the browser.
    HTTPS reverse proxy. A phone cannot reach the computer through a localhost
    link. See [self-hosting](self-hosting.md) for remote access and pairing.
 2. Pair the browser with that workspace using its normal pairing flow.
+   To use the Twilio phone assistant, create a second code in **Settings →
+   Phone & devices** with **Phone assistant (calls and texts)** access. That
+   code adds the call and text controls without granting workspace admin.
 3. On iPhone, open Safari's **Share** menu, choose **Add to Home Screen**, keep
    **Open as Web App** enabled if Safari offers it, then tap **Add**. On Android,
    open Chrome's menu and choose **Install app** or **Add to Home screen**.

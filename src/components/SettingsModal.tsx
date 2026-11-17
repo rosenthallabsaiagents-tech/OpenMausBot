@@ -59,6 +59,7 @@ import { ThreadCleanupSettings } from "./ThreadCleanupSettings";
 import { PinnedPanelsSettings } from "./PinnedPanelsSettings";
 import { DefaultBotSettings } from "./NewBotDialog";
 import { WorkspaceBackupSettings } from "./WorkspaceBackupSettings";
+import { TelephonyAssistant } from "./TelephonyAssistant";
 import { CompanyBackupSettings } from "./CompanyBackupSettings";
 import { ImportSettings } from "./ImportSettings";
 import { cn } from "@/lib/cn";
@@ -343,7 +344,7 @@ function SettingsDialog() {
     domain: remoteActive || thisComputer || (state.config?.team && ownerOrAdmin === false) ? null : <CustomDomainSettings />,
     // Security: the server decides who may pair (an owner or admin session), not this gate.
     pairing: thisComputer ? null : <ServerPairingCard cloudHome={state.config?.cloudHome === true} focusRequest={computerPairs ? 0 : phoneFocus} team={state.config?.team?.name} teamPhoneBlocked={state.config?.managedPolicy?.remoteAccess === false ? t("policy.teamRemoteBlocked", { organization: state.config.managedPolicy.organizationName }) : null} simple={!advanced} />,
-    companion: thisComputer ? <PhoneDevicesSection profileEmail={state.config?.profile?.email} focusRequest={phoneFocus} simple={!advanced} /> : null,
+    companion: <>{thisComputer ? <PhoneDevicesSection profileEmail={state.config?.profile?.email} focusRequest={phoneFocus} simple={!advanced} /> : null}<TelephonyAssistant simple={!advanced} allowPairing={thisComputer} /></>,
   };
 
   const renderSection = (id: AppSettingsSection) => {
